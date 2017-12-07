@@ -1,0 +1,3 @@
+[submodule "libblockdev"]
+	path = libblockdev
+	url = https://github.com/storaged-project/libblockdev.git

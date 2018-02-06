@@ -1,0 +1,60 @@
+From 046ac6848e0c2c5fcab4eaa596630d523d0f5c20 Mon Sep 17 00:00:00 2001
+From: Raine Makelainen <raine.makelainen@jolla.com>
+Date: Thu, 7 Dec 2017 10:53:04 +0200
+Subject: [PATCH 3/4] Make vfat resizing optional
+
+Signed-off-by: Raine Makelainen <raine.makelainen@jolla.com>
+---
+ src/plugins/fs.c | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/plugins/fs.c b/src/plugins/fs.c
+index 48faa07..6b03d62 100644
+--- a/src/plugins/fs.c
++++ b/src/plugins/fs.c
+@@ -18,8 +18,12 @@
+  */
+ 
+ #define _GNU_SOURCE
+-#include <unistd.h>
+ 
++#ifndef ENABLE_VFAT_RESIZE
++#define ENABLE_VFAT_RESIZE 0
++#endif
++
++#include <unistd.h>
+ #include <blockdev/utils.h>
+ #include <fcntl.h>
+ #include <string.h>
+@@ -2954,6 +2958,7 @@ BDFSVfatInfo* bd_fs_vfat_get_info (const gchar *device, GError **error) {
+  * Tech category: %BD_FS_TECH_VFAT-%BD_FS_TECH_MODE_RESIZE
+  */
+ gboolean bd_fs_vfat_resize (const gchar *device, guint64 new_size, GError **error) {
++#if ENABLE_VFAT_RESIZE
+     PedDevice *ped_dev = NULL;
+     PedGeometry geom = {0};
+     PedGeometry new_geom = {0};
+@@ -3032,7 +3037,20 @@ gboolean bd_fs_vfat_resize (const gchar *device, guint64 new_size, GError **erro
+     bd_utils_report_finished (progress_id, "Completed");
+ 
+     return TRUE;
++#else
++    gchar *msg = NULL;
++    guint64 progress_id = 0;
++    msg = g_strdup_printf ("Unsupported resize operation '%s'", device);
++    progress_id = bd_utils_report_started (msg);
++    g_free (msg);
++    (void)new_size;
+ 
++    g_set_error (error, BD_FS_ERROR, BD_FS_ERROR_NOT_SUPPORTED,
++                 "Resize operation in not supported '%s'", device);
++    bd_utils_report_finished (progress_id, (*error)->message);
++    set_parted_error (error, BD_FS_ERROR_NOT_SUPPORTED);
++    return FALSE;
++#endif
+ }
+ 
+ /**
+-- 
+2.7.4
+

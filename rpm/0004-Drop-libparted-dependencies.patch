@@ -1,0 +1,154 @@
+From 3ecf1beeeaaf7d7cbc8b85082f2933dcc659ca43 Mon Sep 17 00:00:00 2001
+From: Raine Makelainen <raine.makelainen@jolla.com>
+Date: Thu, 7 Dec 2017 10:53:37 +0200
+Subject: [PATCH 4/4] Drop libparted dependencies
+
+Signed-off-by: Raine Makelainen <raine.makelainen@jolla.com>
+---
+ configure.ac           | 10 ++--------
+ src/plugins/fs.c       |  9 +++++++++
+ src/plugins/part.c     |  6 ++++++
+ src/plugins/part_err.c |  8 ++++++++
+ src/plugins/part_err.h |  8 +++++++-
+ 5 files changed, 32 insertions(+), 9 deletions(-)
+
+diff --git a/configure.ac b/configure.ac
+index 9e720e1..1414d4b 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -169,7 +169,7 @@ AS_IF([test "x$with_kbd" != "xno"],
+       [])
+ 
+ 
+-AS_IF([test "x$with_part" != "xno" -o "x$with_fs" != "xno"],
++AS_IF([test "x$with_part" != "xno"],
+       [LIBBLOCKDEV_PKG_CHECK_MODULES([PARTED], [libparted >= 3.1])]
+       [])
+ 
+@@ -184,13 +184,7 @@ AS_IF([test "x$with_fs" != "xno"],
+        # define it as 0 (neutral value for bit combinations of flags)
+        AS_IF([$PKG_CONFIG --atleast-version=2.27.0 blkid], [],
+              [AC_DEFINE([BLKID_SUBLKS_BADCSUM], [0],
+-              [Define as neutral value if libblkid doesn't provide the definition])])
+-
+-       # older versions of parted don't provide the libparted-fs-resize.pc file
+-       AS_IF([$PKG_CONFIG libparted-fs-resize],
+-             [LIBBLOCKDEV_PKG_CHECK_MODULES([PARTED_FS], [libparted-fs-resize >= 3.2])],
+-             [AC_SUBST([PARTED_FS_LIBS], [-lparted-fs-resize])
+-              AC_SUBST([PARTED_FS_CFLAGS], [])])],
++              [Define as neutral value if libblkid doesn't provide the definition])])],
+       [])
+ 
+ AS_IF([test "x$with_btrfs" != "xno" -o "x$with_mdraid" != "xno" -o "x$with_kbd" != "xno"],
+diff --git a/src/plugins/fs.c b/src/plugins/fs.c
+index 6b03d62..1dd2790 100644
+--- a/src/plugins/fs.c
++++ b/src/plugins/fs.c
+@@ -23,13 +23,20 @@
+ #define ENABLE_VFAT_RESIZE 0
+ #endif
+ 
++#ifndef HAVE_PARTED
++#define HAVE_PARTED 0
++#endif
++
+ #include <unistd.h>
+ #include <blockdev/utils.h>
+ #include <fcntl.h>
+ #include <string.h>
++#include <stdlib.h>
+ #include <blkid.h>
+ #include <ctype.h>
++#if HAVE_PARTED
+ #include <parted/parted.h>
++#endif
+ #include <part_err.h>
+ #include <libmount/libmount.h>
+ #include <sys/types.h>
+@@ -367,7 +374,9 @@ gboolean bd_fs_check_deps () {
+  *
+  */
+ gboolean bd_fs_init () {
++#if HAVE_PARTED
+     ped_exception_set_handler ((PedExceptionHandler*) bd_exc_handler);
++#endif
+     return TRUE;
+ }
+ 
+diff --git a/src/plugins/part.c b/src/plugins/part.c
+index 8f0d7fd..a38d30b 100644
+--- a/src/plugins/part.c
++++ b/src/plugins/part.c
+@@ -17,8 +17,14 @@
+  * Author: Vratislav Podzimek <vpodzime@redhat.com>
+  */
+ 
++#ifndef HAVE_PARTED
++#define HAVE_PARTED 0
++#endif
++
+ #include <string.h>
++#if HAVE_PARTED
+ #include <parted/parted.h>
++#endif
+ #include <ctype.h>
+ #include <stdlib.h>
+ #include <math.h>
+diff --git a/src/plugins/part_err.c b/src/plugins/part_err.c
+index 87d6c2e..f31bb9f 100644
+--- a/src/plugins/part_err.c
++++ b/src/plugins/part_err.c
+@@ -17,13 +17,20 @@
+  * Author: Vojtech Trefny <vtrefny@redhat.com>
+  */
+ 
++#ifndef HAVE_PARTED
++#define HAVE_PARTED 0
++#endif
++
+ #include <glib.h>
++#if HAVE_PARTED
+ #include <parted/parted.h>
++#endif
+ 
+ #include "part_err.h"
+ 
+ static __thread gchar *error_msg = NULL;
+ 
++#if HAVE_PARTED
+ PedExceptionOption bd_exc_handler (PedException *ex) {
+     if (ex->type <= PED_EXCEPTION_WARNING && (ex->options & PED_EXCEPTION_IGNORE) != 0) {
+       g_warning ("[parted] %s", ex->message);
+@@ -32,6 +39,7 @@ PedExceptionOption bd_exc_handler (PedException *ex) {
+     error_msg = g_strdup (ex->message);
+     return PED_EXCEPTION_UNHANDLED;
+ }
++#endif
+ 
+ gchar * bd_get_error_msg () {
+   return g_strdup (error_msg);
+diff --git a/src/plugins/part_err.h b/src/plugins/part_err.h
+index 252c4cb..cfb24a8 100644
+--- a/src/plugins/part_err.h
++++ b/src/plugins/part_err.h
+@@ -1,10 +1,16 @@
+ #include <glib.h>
+-#include <parted/parted.h>
+ 
+ #ifndef BD_UTILS_PARTED
+ #define BD_UTILS_PARTED
+ 
++#if HAVE_PARTED
++#include <parted/parted.h>
++#endif
++
++#if HAVE_PARTED
+ PedExceptionOption bd_exc_handler (PedException *ex);
++#endif
+ gchar * bd_get_error_msg ();
+ 
++
+ #endif /* BD_UTILS_PARTED */
+-- 
+2.7.4
+

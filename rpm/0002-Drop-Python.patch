@@ -1,4 +1,4 @@
-From f8063c58688051c51e3173a8e6f58805ee2c985b Mon Sep 17 00:00:00 2001
+From c38dcf190c548e5e133112f20d8fbba4ac46dfbc Mon Sep 17 00:00:00 2001
 From: Raine Makelainen <raine.makelainen@jolla.com>
 Date: Tue, 28 Nov 2017 15:33:09 +0200
 Subject: [PATCH 2/4] Drop Python
@@ -18,5 +18,5 @@ index 3e18de0..cb850a9 100644
  
  MAINTAINERCLEANFILES = Makefile.in
 -- 
-2.7.4
+2.17.1
 

@@ -1,74 +1,78 @@
-From 3ecf1beeeaaf7d7cbc8b85082f2933dcc659ca43 Mon Sep 17 00:00:00 2001
+From bb8683ec7d43e47755ea9631a8fcd02b2e84e65b Mon Sep 17 00:00:00 2001
 From: Raine Makelainen <raine.makelainen@jolla.com>
-Date: Thu, 7 Dec 2017 10:53:37 +0200
+Date: Fri, 3 Aug 2018 13:01:28 +0300
 Subject: [PATCH 4/4] Drop libparted dependencies
 
 Signed-off-by: Raine Makelainen <raine.makelainen@jolla.com>
 ---
- configure.ac           | 10 ++--------
- src/plugins/fs.c       |  9 +++++++++
- src/plugins/part.c     |  6 ++++++
- src/plugins/part_err.c |  8 ++++++++
- src/plugins/part_err.h |  8 +++++++-
- 5 files changed, 32 insertions(+), 9 deletions(-)
+ configure.ac           |  14 +---
+ src/plugins/fs.c       |   8 ++
+ src/plugins/part.c     | 164 ++++++++++++++++++++++++++++++++++++++++-
+ src/plugins/part_err.c |   8 ++
+ src/plugins/part_err.h |   7 +-
+ 5 files changed, 184 insertions(+), 17 deletions(-)
 
 diff --git a/configure.ac b/configure.ac
-index 9e720e1..1414d4b 100644
+index 6285a48..639f5be 100644
 --- a/configure.ac
 +++ b/configure.ac
-@@ -169,7 +169,7 @@ AS_IF([test "x$with_kbd" != "xno"],
-       [])
+@@ -182,7 +182,7 @@ LIBBLOCKDEV_PLUGIN([FS], [fs])
+ LIBBLOCKDEV_PLUGIN([NVDIMM], [nvdimm])
+ LIBBLOCKDEV_PLUGIN([VDO], [vdo])
  
+-AM_CONDITIONAL(WITH_PART_O_WITH_FS, test "x$with_part" != "xno" -o "x$with_fs" != "xno")
++AM_CONDITIONAL(WITH_PART_O_WITH_FS, test "x$with_part" != "xno")
+ 
+ dnl these two modules are always needed
+ LIBBLOCKDEV_PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.42.2])
+@@ -210,21 +210,11 @@ AS_IF([test "x$with_dm" != "xno" -a "x$with_dmraid" != "xno"],
+       [LIBBLOCKDEV_CHECK_HEADER([dmraid/dmraid.h], [], [dmraid.h not available])],
+       [])
  
 -AS_IF([test "x$with_part" != "xno" -o "x$with_fs" != "xno"],
-+AS_IF([test "x$with_part" != "xno"],
-       [LIBBLOCKDEV_PKG_CHECK_MODULES([PARTED], [libparted >= 3.1])]
-       [])
- 
-@@ -184,13 +184,7 @@ AS_IF([test "x$with_fs" != "xno"],
-        # define it as 0 (neutral value for bit combinations of flags)
-        AS_IF([$PKG_CONFIG --atleast-version=2.27.0 blkid], [],
-              [AC_DEFINE([BLKID_SUBLKS_BADCSUM], [0],
--              [Define as neutral value if libblkid doesn't provide the definition])])
+-      [LIBBLOCKDEV_PKG_CHECK_MODULES([PARTED], [libparted >= 3.1])]
+-      [])
+-
+ AS_IF([test "x$with_fs" != "xno"],
+       [LIBBLOCKDEV_PKG_CHECK_MODULES([MOUNT], [mount >= 2.23.0])
+        # new versions of libmount has some new functions we can use
+        AS_IF([$PKG_CONFIG --atleast-version=2.30.0 mount],
+-             [AC_DEFINE([LIBMOUNT_NEW_ERR_API])], [])
 -
 -       # older versions of parted don't provide the libparted-fs-resize.pc file
 -       AS_IF([$PKG_CONFIG libparted-fs-resize],
 -             [LIBBLOCKDEV_PKG_CHECK_MODULES([PARTED_FS], [libparted-fs-resize >= 3.2])],
 -             [AC_SUBST([PARTED_FS_LIBS], [-lparted-fs-resize])
 -              AC_SUBST([PARTED_FS_CFLAGS], [])])],
-+              [Define as neutral value if libblkid doesn't provide the definition])])],
++             [AC_DEFINE([LIBMOUNT_NEW_ERR_API])], [])],
        [])
  
- AS_IF([test "x$with_btrfs" != "xno" -o "x$with_mdraid" != "xno" -o "x$with_kbd" != "xno"],
+ AS_IF([test "x$with_fs" != "xno" -o "x$with_crypto" != "xno"],
 diff --git a/src/plugins/fs.c b/src/plugins/fs.c
-index 6b03d62..1dd2790 100644
+index 9152d91..b3ff6a1 100644
 --- a/src/plugins/fs.c
 +++ b/src/plugins/fs.c
-@@ -23,13 +23,20 @@
- #define ENABLE_VFAT_RESIZE 0
- #endif
+@@ -17,10 +17,16 @@
+  * Author: Vratislav Podzimek <vpodzime@redhat.com>
+  */
  
 +#ifndef HAVE_PARTED
 +#define HAVE_PARTED 0
 +#endif
 +
- #include <unistd.h>
  #include <blockdev/utils.h>
- #include <fcntl.h>
- #include <string.h>
-+#include <stdlib.h>
- #include <blkid.h>
- #include <ctype.h>
+ #include <blockdev/part_err.h>
+ 
 +#if HAVE_PARTED
  #include <parted/parted.h>
 +#endif
- #include <part_err.h>
- #include <libmount/libmount.h>
- #include <sys/types.h>
-@@ -367,7 +374,9 @@ gboolean bd_fs_check_deps () {
+ 
+ #include <check_deps.h>
+ #include "fs.h"
+@@ -93,7 +99,9 @@ gboolean bd_fs_check_deps (void) {
   *
   */
- gboolean bd_fs_init () {
+ gboolean bd_fs_init (void) {
 +#if HAVE_PARTED
      ped_exception_set_handler ((PedExceptionHandler*) bd_exc_handler);
 +#endif
@@ -76,7 +80,7 @@ index 6b03d62..1dd2790 100644
  }
  
 diff --git a/src/plugins/part.c b/src/plugins/part.c
-index 8f0d7fd..a38d30b 100644
+index 15832b7..38db5bb 100644
 --- a/src/plugins/part.c
 +++ b/src/plugins/part.c
 @@ -17,8 +17,14 @@
@@ -94,8 +98,535 @@ index 8f0d7fd..a38d30b 100644
  #include <ctype.h>
  #include <stdlib.h>
  #include <math.h>
+@@ -190,7 +196,9 @@ gboolean bd_part_check_deps (void) {
+  *
+  */
+ gboolean bd_part_init (void) {
++#if HAVE_PARTED
+     ped_exception_set_handler ((PedExceptionHandler*) bd_exc_handler);
++#endif
+     return TRUE;
+ }
+ 
+@@ -202,7 +210,9 @@ gboolean bd_part_init (void) {
+  *
+  */
+ void bd_part_close (void) {
++#if HAVE_PARTED
+     ped_exception_set_handler (NULL);
++#endif
+ }
+ 
+ /**
+@@ -234,6 +244,7 @@ gboolean bd_part_is_tech_avail (BDPartTech tech, guint64 mode, GError **error) {
+ 
+ static const gchar *table_type_str[BD_PART_TABLE_UNDEF] = {"msdos", "gpt"};
+ 
++#if HAVE_PARTED
+ static gboolean disk_commit (PedDisk *disk, const gchar *path, GError **error) {
+     gint ret = 0;
+     gint dev_fd = 0;
+@@ -285,6 +296,7 @@ static gboolean disk_commit (PedDisk *disk, const gchar *path, GError **error) {
+         close (dev_fd);
+     return TRUE;
+ }
++#endif
+ 
+ /**
+  * bd_part_create_table:
+@@ -299,9 +311,11 @@ static gboolean disk_commit (PedDisk *disk, const gchar *path, GError **error) {
+  * Tech category: %BD_PART_TECH_MODE_CREATE_TABLE + the tech according to @type
+  */
+ gboolean bd_part_create_table (const gchar *disk, BDPartTableType type, gboolean ignore_existing, GError **error) {
++#if HAVE_PARTED
+     PedDevice *dev = NULL;
+     PedDisk *ped_disk = NULL;
+     PedDiskType *disk_type = NULL;
++#endif
+     gboolean ret = FALSE;
+     guint64 progress_id = 0;
+     gchar *msg = NULL;
+@@ -310,6 +324,7 @@ gboolean bd_part_create_table (const gchar *disk, BDPartTableType type, gboolean
+     progress_id = bd_utils_report_started (msg);
+     g_free (msg);
+ 
++#if HAVE_PARTED
+     dev = ped_device_get (disk);
+     if (!dev) {
+         set_parted_error (error, BD_PART_ERROR_INVAL);
+@@ -352,8 +367,18 @@ gboolean bd_part_create_table (const gchar *disk, BDPartTableType type, gboolean
+ 
+     /* just return what we got (error may be set) */
+     return ret;
++#else
++    (void)type;
++    (void)ignore_existing;
++
++    set_parted_error (error, BD_PART_ERROR_INVAL);
++    g_prefix_error (error, "Error unsupported operation. Cannot create partition table.");
++    bd_utils_report_finished (progress_id, (*error)->message);
++    return ret;
++#endif
+ }
+ 
++#if HAVE_PARTED
+ static gchar* get_part_type_guid_and_gpt_flags (const gchar *device, int part_num, guint64 *flags, GError **error) {
+     const gchar *args[4] = {"sgdisk", NULL, device, NULL};
+     gchar *output = NULL;
+@@ -456,6 +481,7 @@ static BDPartSpec* get_part_spec (PedDevice *dev, PedDisk *disk, PedPartition *p
+ 
+     return ret;
+ }
++#endif
+ 
+ /**
+  * bd_part_get_part_spec:
+@@ -468,11 +494,13 @@ static BDPartSpec* get_part_spec (PedDevice *dev, PedDisk *disk, PedPartition *p
+  * Tech category: %BD_PART_TECH_MODE_QUERY_PART + the tech according to the partition table type
+  */
+ BDPartSpec* bd_part_get_part_spec (const gchar *disk, const gchar *part, GError **error) {
++#if HAVE_PARTED
+     PedDevice *dev = NULL;
+     PedDisk *ped_disk = NULL;
+     PedPartition *ped_part = NULL;
+     const gchar *part_num_str = NULL;
+     gint part_num = 0;
++#endif
+     BDPartSpec *ret = NULL;
+ 
+     if (!part || (part && (*part == '\0'))) {
+@@ -481,6 +509,7 @@ BDPartSpec* bd_part_get_part_spec (const gchar *disk, const gchar *part, GError
+         return NULL;
+     }
+ 
++#if HAVE_PARTED
+     dev = ped_device_get (disk);
+     if (!dev) {
+         set_parted_error (error, BD_PART_ERROR_INVAL);
+@@ -527,6 +556,12 @@ BDPartSpec* bd_part_get_part_spec (const gchar *disk, const gchar *part, GError
+     ped_device_destroy (dev);
+ 
+     return ret;
++#else
++    (void)disk;
++    set_parted_error (error, BD_PART_ERROR_INVAL);
++    g_prefix_error (error, "Error unsupported operation");
++    return ret;
++#endif
+ }
+ 
+ /**
+@@ -541,6 +576,7 @@ BDPartSpec* bd_part_get_part_spec (const gchar *disk, const gchar *part, GError
+  * Tech category: %BD_PART_TECH_MODE_QUERY_PART + the tech according to the partition table type
+  */
+ BDPartSpec* bd_part_get_part_by_pos (const gchar *disk, guint64 position, GError **error) {
++#if HAVE_PARTED
+     PedDevice *dev = NULL;
+     PedDisk *ped_disk = NULL;
+     PedPartition *ped_part = NULL;
+@@ -583,6 +619,13 @@ BDPartSpec* bd_part_get_part_by_pos (const gchar *disk, guint64 position, GError
+     ped_device_destroy (dev);
+ 
+     return ret;
++#else
++    (void)disk;
++    (void)position;
++    set_parted_error (error, BD_PART_ERROR_INVAL);
++    g_prefix_error (error, "Error unsupported operation. Cannot read partition table.");
++    return NULL;
++#endif
+ }
+ 
+ /**
+@@ -595,6 +638,7 @@ BDPartSpec* bd_part_get_part_by_pos (const gchar *disk, guint64 position, GError
+  * Tech category: %BD_PART_TECH_MODE_QUERY_TABLE + the tech according to the partition table type
+  */
+ BDPartDiskSpec* bd_part_get_disk_spec (const gchar *disk, GError **error) {
++#if HAVE_PARTED
+     PedDevice *dev = NULL;
+     BDPartDiskSpec *ret = NULL;
+     PedConstraint *constr = NULL;
+@@ -638,8 +682,15 @@ BDPartDiskSpec* bd_part_get_disk_spec (const gchar *disk, GError **error) {
+     ped_device_destroy (dev);
+ 
+     return ret;
++#else
++    (void)disk;
++    set_parted_error (error, BD_PART_ERROR_INVAL);
++    g_prefix_error (error, "Error unsupported operation. Cannot read disk information.");
++    return NULL;
++#endif
+ }
+ 
++#if HAVE_PARTED
+ static BDPartSpec** get_disk_parts (const gchar *disk, guint64 incl, guint64 excl, gboolean incl_normal, GError **error) {
+     PedDevice *dev = NULL;
+     PedDisk *ped_disk = NULL;
+@@ -688,6 +739,7 @@ static BDPartSpec** get_disk_parts (const gchar *disk, guint64 incl, guint64 exc
+ 
+     return ret;
+ }
++#endif
+ 
+ /**
+  * bd_part_get_disk_parts:
+@@ -699,8 +751,15 @@ static BDPartSpec** get_disk_parts (const gchar *disk, guint64 incl, guint64 exc
+  * Tech category: %BD_PART_TECH_MODE_QUERY_TABLE + the tech according to the partition table type
+  */
+ BDPartSpec** bd_part_get_disk_parts (const gchar *disk, GError **error) {
++#if HAVE_PARTED
+     return get_disk_parts (disk, BD_PART_TYPE_NORMAL|BD_PART_TYPE_LOGICAL|BD_PART_TYPE_EXTENDED,
+                            BD_PART_TYPE_FREESPACE|BD_PART_TYPE_METADATA|BD_PART_TYPE_PROTECTED, TRUE, error);
++#else
++    (void)disk;
++    set_parted_error (error, BD_PART_ERROR_INVAL);
++    g_prefix_error (error, "Error unsupported operation. Cannot get disk parts.");
++    return NULL;
++#endif
+ }
+ 
+ /**
+@@ -713,7 +772,14 @@ BDPartSpec** bd_part_get_disk_parts (const gchar *disk, GError **error) {
+  * Tech category: %BD_PART_TECH_MODE_QUERY_TABLE + the tech according to the partition table type
+  */
+ BDPartSpec** bd_part_get_disk_free_regions (const gchar *disk, GError **error) {
++#if HAVE_PARTED
+     return get_disk_parts (disk, BD_PART_TYPE_FREESPACE, 0, FALSE, error);
++#else
++    (void)disk;
++    set_parted_error (error, BD_PART_ERROR_INVAL);
++    g_prefix_error (error, "Error unsupported operation. Cannot get free disk regions.");
++    return NULL;
++#endif
+ }
+ 
+ /**
+@@ -794,6 +860,7 @@ BDPartSpec* bd_part_get_best_free_region (const gchar *disk, BDPartType type, gu
+     return ret;
+ }
+ 
++#if HAVE_PARTED
+ static PedConstraint* prepare_alignment_constraint (PedDevice *dev, PedDisk *disk, BDPartAlign align, gint *orig_flag_state) {
+     if (align == BD_PART_ALIGN_OPTIMAL) {
+         /* cylinder alignment does really weird things when turned on, let's not
+@@ -979,6 +1046,7 @@ static PedPartition* add_part_to_disk (PedDevice *dev, PedDisk *disk, BDPartType
+ 
+     return part;
+ }
++#endif
+ 
+ /**
+  * bd_part_create_part:
+@@ -999,6 +1067,7 @@ static PedPartition* add_part_to_disk (PedDevice *dev, PedDisk *disk, BDPartType
+  * Tech category: %BD_PART_TECH_MODE_MODIFY_TABLE + the tech according to the partition table type
+  */
+ BDPartSpec* bd_part_create_part (const gchar *disk, BDPartTypeReq type, guint64 start, guint64 size, BDPartAlign align, GError **error) {
++#if HAVE_PARTED
+     PedDevice *dev = NULL;
+     PedDisk *ped_disk = NULL;
+     PedPartition *ped_part = NULL;
+@@ -1006,6 +1075,7 @@ BDPartSpec* bd_part_create_part (const gchar *disk, BDPartTypeReq type, guint64
+     PedSector start_sector = 0;
+     gint last_num = 0;
+     gboolean succ = FALSE;
++#endif
+     BDPartSpec *ret = NULL;
+     guint64 progress_id = 0;
+     gchar *msg = NULL;
+@@ -1014,6 +1084,7 @@ BDPartSpec* bd_part_create_part (const gchar *disk, BDPartTypeReq type, guint64
+     progress_id = bd_utils_report_started (msg);
+     g_free (msg);
+ 
++#if HAVE_PARTED
+     dev = ped_device_get (disk);
+     if (!dev) {
+         set_parted_error (error, BD_PART_ERROR_INVAL);
+@@ -1104,6 +1175,16 @@ BDPartSpec* bd_part_create_part (const gchar *disk, BDPartTypeReq type, guint64
+     bd_utils_report_finished (progress_id, "Completed");
+ 
+     return ret;
++#else
++    (void)type;
++    (void)start;
++    (void)size;
++    (void)align;
++    set_parted_error (error, BD_PART_ERROR_INVAL);
++    g_prefix_error (error, "Error unsupported operation. Cannot create partition.");
++    bd_utils_report_finished (progress_id, (*error)->message);
++    return ret;
++#endif
+ }
+ 
+ /**
+@@ -1117,12 +1198,14 @@ BDPartSpec* bd_part_create_part (const gchar *disk, BDPartTypeReq type, guint64
+  * Tech category: %BD_PART_TECH_MODE_MODIFY_TABLE + the tech according to the partition table type
+  */
+ gboolean bd_part_delete_part (const gchar *disk, const gchar *part, GError **error) {
++#if HAVE_PARTED
+     PedDevice *dev = NULL;
+     PedDisk *ped_disk = NULL;
+     PedPartition *ped_part = NULL;
+-    const gchar *part_num_str = NULL;
+     gint part_num = 0;
++    const gchar *part_num_str = NULL;
+     gint status = 0;
++#endif
+     gboolean ret = FALSE;
+     guint64 progress_id = 0;
+     gchar *msg = NULL;
+@@ -1131,6 +1214,7 @@ gboolean bd_part_delete_part (const gchar *disk, const gchar *part, GError **err
+     progress_id = bd_utils_report_started (msg);
+     g_free (msg);
+ 
++#if HAVE_PARTED
+     if (!part || (part && (*part == '\0'))) {
+         g_set_error (error, BD_PART_ERROR, BD_PART_ERROR_INVAL,
+                      "Invalid partition path given: '%s'", part);
+@@ -1199,6 +1283,13 @@ gboolean bd_part_delete_part (const gchar *disk, const gchar *part, GError **err
+     bd_utils_report_finished (progress_id, "Completed");
+ 
+     return ret;
++#else
++    (void)disk;
++    g_set_error (error, BD_PART_ERROR, BD_PART_ERROR_INVAL,
++                 "Error unsupported operation. Cannot delete partition.");
++    bd_utils_report_finished (progress_id, (*error)->message);
++    return ret;
++#endif
+ }
+ 
+ /**
+@@ -1216,21 +1307,24 @@ gboolean bd_part_delete_part (const gchar *disk, const gchar *part, GError **err
+  * Tech category: %BD_PART_TECH_MODE_MODIFY_TABLE + the tech according to the partition table type
+  */
+ gboolean bd_part_resize_part (const gchar *disk, const gchar *part, guint64 size, BDPartAlign align, GError **error) {
++#if HAVE_PARTED
+     PedDevice *dev = NULL;
+     PedDisk *ped_disk = NULL;
+     PedPartition *ped_part = NULL;
+     const gchar *part_num_str = NULL;
+     gint part_num = 0;
++    guint64 old_size = 0;
++    guint64 new_size = 0;
++#endif
+     gboolean ret = FALSE;
+     guint64 progress_id = 0;
+     gchar *msg = NULL;
+-    guint64 old_size = 0;
+-    guint64 new_size = 0;
+ 
+     msg = g_strdup_printf ("Started resizing partition '%s'", part);
+     progress_id = bd_utils_report_started (msg);
+     g_free (msg);
+ 
++#if HAVE_PARTED
+     if (!part || (part && (*part == '\0'))) {
+         g_set_error (error, BD_PART_ERROR, BD_PART_ERROR_INVAL,
+                      "Invalid partition path given: '%s'", part);
+@@ -1321,9 +1415,18 @@ gboolean bd_part_resize_part (const gchar *disk, const gchar *part, guint64 size
+     bd_utils_report_finished (progress_id, "Completed");
+ 
+     return ret;
++#else
++    (void)disk;
++    (void)size;
++    (void)align;
++    g_set_error (error, BD_PART_ERROR, BD_PART_ERROR_INVAL,
++                 "Error unsupported operation. Cannot resize partition.");
++    bd_utils_report_finished (progress_id, (*error)->message);
++    return ret;
++#endif
+ }
+ 
+-
++#if HAVE_PARTED
+ static gboolean set_gpt_flag (const gchar *device, int part_num, BDPartFlag flag, gboolean state, GError **error) {
+     const gchar *args[5] = {"sgdisk", "--attributes", NULL, device, NULL};
+     int bit_num = 0;
+@@ -1378,6 +1481,7 @@ static gboolean set_gpt_flags (const gchar *device, int part_num, guint64 flags,
+     g_free ((gchar *) args[2]);
+     return success;
+ }
++#endif
+ 
+ /**
+  * bd_part_set_part_flag:
+@@ -1393,6 +1497,7 @@ static gboolean set_gpt_flags (const gchar *device, int part_num, guint64 flags,
+  * Tech category: %BD_PART_TECH_MODE_MODIFY_PART + the tech according to the partition table type
+  */
+ gboolean bd_part_set_part_flag (const gchar *disk, const gchar *part, BDPartFlag flag, gboolean state, GError **error) {
++#if HAVE_PARTED
+     PedDevice *dev = NULL;
+     PedDisk *ped_disk = NULL;
+     PedPartition *ped_part = NULL;
+@@ -1400,6 +1505,7 @@ gboolean bd_part_set_part_flag (const gchar *disk, const gchar *part, BDPartFlag
+     const gchar *part_num_str = NULL;
+     gint part_num = 0;
+     gint status = 0;
++#endif
+     gboolean ret = FALSE;
+     guint64 progress_id = 0;
+     gchar *msg = NULL;
+@@ -1408,6 +1514,7 @@ gboolean bd_part_set_part_flag (const gchar *disk, const gchar *part, BDPartFlag
+     progress_id = bd_utils_report_started (msg);
+     g_free (msg);
+ 
++#if HAVE_PARTED
+     /* TODO: share this code with the other functions modifying a partition */
+     if (!part || (part && (*part == '\0'))) {
+         g_set_error (error, BD_PART_ERROR, BD_PART_ERROR_INVAL,
+@@ -1488,6 +1595,15 @@ gboolean bd_part_set_part_flag (const gchar *disk, const gchar *part, BDPartFlag
+     bd_utils_report_finished (progress_id, "Completed");
+ 
+     return ret;
++#else
++    (void)disk;
++    (void)flag;
++    (void)state;
++    g_set_error (error, BD_PART_ERROR, BD_PART_ERROR_INVAL,
++                 "Error unsupported operation. Cannot set partition flag.");
++    bd_utils_report_finished (progress_id, (*error)->message);
++    return ret;
++#endif
+ }
+ 
+ /**
+@@ -1502,9 +1618,11 @@ gboolean bd_part_set_part_flag (const gchar *disk, const gchar *part, BDPartFlag
+  * Tech category: %BD_PART_TECH_MODE_MODIFY_TABLE + the tech according to the partition table type
+  */
+ gboolean bd_part_set_disk_flag (const gchar *disk, BDPartDiskFlag flag, gboolean state, GError **error) {
++#if HAVE_PARTED
+     PedDevice *dev = NULL;
+     PedDisk *ped_disk = NULL;
+     gint status = 0;
++#endif
+     gboolean ret = FALSE;
+     guint64 progress_id = 0;
+     gchar *msg = NULL;
+@@ -1513,6 +1631,7 @@ gboolean bd_part_set_disk_flag (const gchar *disk, BDPartDiskFlag flag, gboolean
+     progress_id = bd_utils_report_started (msg);
+     g_free (msg);
+ 
++#if HAVE_PARTED
+     dev = ped_device_get (disk);
+     if (!dev) {
+         set_parted_error (error, BD_PART_ERROR_INVAL);
+@@ -1555,6 +1674,14 @@ gboolean bd_part_set_disk_flag (const gchar *disk, BDPartDiskFlag flag, gboolean
+     bd_utils_report_finished (progress_id, "Completed");
+ 
+     return ret;
++#else
++    (void)flag;
++    (void)state;
++    g_set_error (error, BD_PART_ERROR, BD_PART_ERROR_INVAL,
++                 "Error unsupported operation. Cannot set disk flags.");
++    bd_utils_report_finished (progress_id, (*error)->message);
++    return ret;
++#endif
+ }
+ 
+ /**
+@@ -1574,6 +1701,7 @@ gboolean bd_part_set_disk_flag (const gchar *disk, BDPartDiskFlag flag, gboolean
+  * Tech category: %BD_PART_TECH_MODE_MODIFY_PART + the tech according to the partition table type
+  */
+ gboolean bd_part_set_part_flags (const gchar *disk, const gchar *part, guint64 flags, GError **error) {
++#if HAVE_PARTED
+     PedDevice *dev = NULL;
+     PedDisk *ped_disk = NULL;
+     PedPartition *ped_part = NULL;
+@@ -1581,6 +1709,7 @@ gboolean bd_part_set_part_flags (const gchar *disk, const gchar *part, guint64 f
+     gint part_num = 0;
+     int i = 0;
+     gint status = 0;
++#endif
+     gboolean ret = FALSE;
+     guint64 progress_id = 0;
+     gchar *msg = NULL;
+@@ -1589,6 +1718,7 @@ gboolean bd_part_set_part_flags (const gchar *disk, const gchar *part, guint64 f
+     progress_id = bd_utils_report_started (msg);
+     g_free (msg);
+ 
++#if HAVE_PARTED
+     /* TODO: share this code with the other functions modifying a partition */
+     if (!part || (part && (*part == '\0'))) {
+         g_set_error (error, BD_PART_ERROR, BD_PART_ERROR_INVAL,
+@@ -1670,6 +1800,14 @@ gboolean bd_part_set_part_flags (const gchar *disk, const gchar *part, guint64 f
+     bd_utils_report_finished (progress_id, "Completed");
+ 
+     return ret;
++#else
++    (void)disk;
++    (void)flags;
++    g_set_error (error, BD_PART_ERROR, BD_PART_ERROR_INVAL,
++                 "Error unsupported operation. Cannot set partition flags.");
++    bd_utils_report_finished (progress_id, (*error)->message);
++    return ret;
++#endif
+ }
+ 
+ 
+@@ -1685,12 +1823,14 @@ gboolean bd_part_set_part_flags (const gchar *disk, const gchar *part, guint64 f
+  * Tech category: %BD_PART_TECH_MODE_MODIFY_PART + the tech according to the partition table type
+  */
+ gboolean bd_part_set_part_name (const gchar *disk, const gchar *part, const gchar *name, GError **error) {
++#if HAVE_PARTED
+     PedDevice *dev = NULL;
+     PedDisk *ped_disk = NULL;
+     PedPartition *ped_part = NULL;
+     const gchar *part_num_str = NULL;
+     gint part_num = 0;
+     gint status = 0;
++#endif
+     gboolean ret = FALSE;
+     guint64 progress_id = 0;
+     gchar *msg = NULL;
+@@ -1699,6 +1839,7 @@ gboolean bd_part_set_part_name (const gchar *disk, const gchar *part, const gcha
+     progress_id = bd_utils_report_started (msg);
+     g_free (msg);
+ 
++#if HAVE_PARTED
+     /* TODO: share this code with the other functions modifying a partition */
+     if (!part || (part && (*part == '\0'))) {
+         g_set_error (error, BD_PART_ERROR, BD_PART_ERROR_INVAL,
+@@ -1777,6 +1918,14 @@ gboolean bd_part_set_part_name (const gchar *disk, const gchar *part, const gcha
+     bd_utils_report_finished (progress_id, "Completed");
+ 
+     return ret;
++#else
++    (void)disk;
++    (void)name;
++    g_set_error (error, BD_PART_ERROR, BD_PART_ERROR_INVAL,
++                 "Error unsupported operation. Cannot set partition name.");
++    bd_utils_report_finished (progress_id, (*error)->message);
++    return ret;
++#endif
+ }
+ 
+ /**
+@@ -1990,8 +2139,10 @@ const gchar* bd_part_get_part_table_type_str (BDPartTableType type, GError **err
+  * Tech category: always available
+  */
+ const gchar* bd_part_get_flag_str (BDPartFlag flag, GError **error) {
++#if HAVE_PARTED
+     if (flag < BD_PART_FLAG_BASIC_LAST)
+         return ped_partition_flag_get_name ((PedPartitionFlag) log2 ((double) flag));
++#endif
+     if (flag == BD_PART_FLAG_GPT_SYSTEM_PART)
+         return "system partition";
+     if (flag == BD_PART_FLAG_GPT_READ_ONLY)
+@@ -2021,5 +2172,10 @@ const gchar* bd_part_get_type_str (BDPartType type, GError **error) {
+         return NULL;
+     }
+ 
++#if HAVE_PARTED
+     return ped_partition_type_get_name ((PedPartitionType) type);
++#else
++    g_set_error (error, BD_PART_ERROR, BD_PART_ERROR_INVAL, "Error unsupported operation. Cannot get partition type string.");
++    return NULL;
++#endif
+ }
 diff --git a/src/plugins/part_err.c b/src/plugins/part_err.c
-index 87d6c2e..f31bb9f 100644
+index 3910a21..f9d914f 100644
 --- a/src/plugins/part_err.c
 +++ b/src/plugins/part_err.c
 @@ -17,13 +17,20 @@
@@ -125,13 +656,13 @@ index 87d6c2e..f31bb9f 100644
  }
 +#endif
  
- gchar * bd_get_error_msg () {
+ gchar * bd_get_error_msg (void) {
    return g_strdup (error_msg);
 diff --git a/src/plugins/part_err.h b/src/plugins/part_err.h
-index 252c4cb..cfb24a8 100644
+index 737ccef..33f5e96 100644
 --- a/src/plugins/part_err.h
 +++ b/src/plugins/part_err.h
-@@ -1,10 +1,16 @@
+@@ -1,10 +1,15 @@
  #include <glib.h>
 -#include <parted/parted.h>
  
@@ -145,10 +676,9 @@ index 252c4cb..cfb24a8 100644
 +#if HAVE_PARTED
  PedExceptionOption bd_exc_handler (PedException *ex);
 +#endif
- gchar * bd_get_error_msg ();
+ gchar * bd_get_error_msg (void);
  
-+
  #endif /* BD_UTILS_PARTED */
 -- 
-2.7.4
+2.17.1
 

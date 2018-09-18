@@ -1,5 +1,5 @@
 Name:        libblockdev
-Version:     2.14
+Version:     2.19
 Release:     1
 Summary:     A library for low-level manipulation with block devices
 License:     LGPLv2+
@@ -9,6 +9,7 @@ Source0:     %{name}-%{version}.tar.gz
 BuildRequires: pkgconfig(glib-2.0)
 BuildRequires: pkgconfig(gobject-introspection-1.0)
 BuildRequires: pkgconfig(udev)
+BuildRequires: pkgconfig(libkmod)
 BuildRequires: gettext-devel
 BuildRequires: autoconf
 BuildRequires: automake
@@ -115,6 +116,25 @@ Requires: glib2-devel
 This package contains header files and pkg-config files needed for development
 with the libblockdev-loop plugin/library.
 
+%package part
+Summary:     The partitioning plugin for the libblockdev library
+Requires: %{name}-utils >= 0.11
+Requires: util-linux
+
+%description part
+The libblockdev library plugin (and in the same time a standalone library)
+providing the functionality related to partitioning.
+
+%package part-devel
+Summary:     Development files for the libblockdev-part plugin/library
+Requires: %{name}-part = %{version}-%{release}
+Requires: %{name}-utils-devel
+Requires: glib2-devel
+
+%description part-devel
+This package contains header files and pkg-config files needed for development
+with the libblockdev-part plugin/library.
+
 %package swap
 Summary:     The swap plugin for the libblockdev library
 Requires: %{name}-utils >= 0.11
@@ -165,8 +185,9 @@ autoreconf -vfi
     --without-kbd \
     --without-mpath \
     --without-dm \
-    --without-part \
     --without-mdraid \
+    --without-vdo \
+    --without-nvdimm \
     --with-python3=no \
     --with-gtk-doc=no \
     --enable-tests=no
@@ -188,6 +209,9 @@ autoreconf -vfi
 
 %post loop -p /sbin/ldconfig
 %postun loop -p /sbin/ldconfig
+
+%post part -p /sbin/ldconfig
+%postun part -p /sbin/ldconfig
 
 %post swap -p /sbin/ldconfig
 %postun swap -p /sbin/ldconfig
@@ -224,6 +248,8 @@ autoreconf -vfi
 %{_includedir}/blockdev/exec.h
 %{_includedir}/blockdev/extra_arg.h
 %{_includedir}/blockdev/dev_utils.h
+%{_includedir}/blockdev/module.h
+%{_includedir}/blockdev/dbus.h
 
 %files crypto
 %{_libdir}/libbd_crypto.so.*
@@ -240,6 +266,13 @@ autoreconf -vfi
 %{_libdir}/libbd_fs.so
 %dir %{_includedir}/blockdev
 %{_includedir}/blockdev/fs.h
+%{_includedir}/blockdev/fs/ext.h
+%{_includedir}/blockdev/fs/generic.h
+%{_includedir}/blockdev/fs/mount.h
+%{_includedir}/blockdev/fs/ntfs.h
+%{_includedir}/blockdev/fs/vfat.h
+%{_includedir}/blockdev/fs/xfs.h
+
 
 %files loop
 %{_libdir}/libbd_loop.so.*
@@ -248,6 +281,14 @@ autoreconf -vfi
 %{_libdir}/libbd_loop.so
 %dir %{_includedir}/blockdev
 %{_includedir}/blockdev/loop.h
+
+%files part
+%{_libdir}/libbd_part.so.*
+
+%files part-devel
+%{_libdir}/libbd_part.so
+%dir %{_includedir}/blockdev
+%{_includedir}/blockdev/part.h
 
 %files swap
 %{_libdir}/libbd_swap.so.*

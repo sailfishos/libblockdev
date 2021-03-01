@@ -20,10 +20,6 @@ Patch2: 0002-Drop-Python.patch
 Patch3: 0003-Make-vfat-resizing-optional.patch
 Patch4: 0004-Drop-libparted-dependencies.patch
 
-# Needed for the escrow tests in tests/crypto_test.py, but not used to build
-# BuildRequires: volume_key
-# BuildRequires: nss-tools
-
 %description
 The libblockdev is a C library with GObject introspection support that can be
 used for doing low-level operations with block devices like setting up LVM,
@@ -61,7 +57,6 @@ with the libblockdev-utils library.
 
 %package crypto
 BuildRequires: pkgconfig(libcryptsetup) >= 1.4.0
-BuildRequires: volume_key-devel >= 0.3.9-1
 BuildRequires: pkgconfig(nss)
 Summary:     The crypto plugin for the libblockdev library
 
@@ -188,6 +183,8 @@ autoreconf -vfi
     --without-mdraid \
     --without-vdo \
     --without-nvdimm \
+    --without-escrow \
+    --with-python2=no \
     --with-python3=no \
     --with-gtk-doc=no \
     --enable-tests=no

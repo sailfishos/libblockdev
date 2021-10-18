@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Vojtech Trefny <vtrefny@redhat.com>
+Date: Fri, 25 Sep 2020 12:15:38 +0200
+Subject: [PATCH] part: Fix return value of get_max_part_size for ungrowable
+ parts
+
+This function checks for free space after the partition so it
+returns 0 for partitions without free space after them which
+doesn't really make sense. This changes the function behaviour to
+return size of the partition instead.
+---
+ src/plugins/part.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/plugins/part.c b/src/plugins/part.c
+index 4f45e7d..db9da3c 100644
+--- a/src/plugins/part.c
++++ b/src/plugins/part.c
+@@ -1592,6 +1592,10 @@ static gboolean get_max_part_size (struct fdisk_table *tb, guint partno, guint64
+         }
+     }
+ 
++    /* no free space found: set max_size to current size */
++    if (*max_size == 0)
++        *max_size = fdisk_partition_get_size (cur);
++
+     fdisk_free_iter (itr);
+     return TRUE;
+ }
+-- 
+2.33.1
+

@@ -1,5 +1,5 @@
 Name:        libblockdev
-Version:     2.19
+Version:     2.26
 Release:     1
 Summary:     A library for low-level manipulation with block devices
 License:     LGPLv2+
@@ -12,13 +12,43 @@ BuildRequires: pkgconfig(udev)
 BuildRequires: pkgconfig(libkmod)
 BuildRequires: gettext-devel
 BuildRequires: autoconf
+BuildRequires: autoconf-archive
 BuildRequires: automake
 BuildRequires: libtool
+BuildRequires: libfdisk-devel
+# i=1; for j in 00*patch; do printf "Patch%04d: %s\n" $i $j; i=$((i+1));done
+Patch0001: 0001-utils-Allow-passing-NULL-for-error.patch
+Patch0002: 0002-Implement-create_table-and-delete_part-using-libfdis.patch
+Patch0003: 0003-Rewrite-bd_part_get_disk_spec-and-bd_part_set_disk_f.patch
+Patch0004: 0004-Rewrite-bd_part_set_part_name-using-libfdisk.patch
+Patch0005: 0005-Use-libfdisk-to-set-GPT-flags-instead-of-sgdisk.patch
+Patch0006: 0006-Use-libfdisk-to-get-GPT-partition-flags-and-GUID.patch
+Patch0007: 0007-Use-libfdisk-to-set-partition-type-id-instead-of-sfd.patch
+Patch0008: 0008-Add-a-static-function-to-get-partition-number-from-n.patch
+Patch0009: 0009-Use-libfdisk-to-get-partition-ID-instead-of-sfdisk.patch
+Patch0010: 0010-Implement-bd_part_get_type_str-without-libparted.patch
+Patch0011: 0011-Use-libfdisk-to-set-parted-flags-in-bd_part_set_flag.patch
+Patch0012: 0012-Use-libfdisk-to-set-parted-flags-in-bd_part_set_flag.patch
+Patch0013: 0013-Use-libfdisk-to-get-partition-spec.patch
+Patch0014: 0014-Do-not-overwrite-errors-from-get_part_num.patch
+Patch0015: 0015-Use-libfdisk-to-get-disk-partitions-and-free-regions.patch
+Patch0016: 0016-Use-libfdisk-to-get-partition-by-its-position.patch
+Patch0017: 0017-Do-not-remove-all-flags-in-bd_part_set_part_flags-on.patch
+Patch0018: 0018-Manually-add-metadata-partitions-to-the-list-of-part.patch
+Patch0019: 0019-Redirect-libfdisk-log-messages-to-our-log.patch
+Patch0020: 0020-Use-libfdisk-to-create-new-partitions.patch
+Patch0021: 0021-Call-fdisk_reread_changes-after-adding-removing-part.patch
+Patch0022: 0022-Use-libfdisk-for-partition-resizing.patch
+Patch0023: 0023-Remove-remaining-parted-functions-from-the-part-plug.patch
+Patch0024: 0024-part-Take-exclusive-lock-instead-of-shared-before-wr.patch
+Patch0025: 0025-Re-read-entire-partition-table-after-adding-extended.patch
+Patch0026: 0026-part-Fix-few-typos-in-comments-and-docstrings.patch
+Patch0027: 0027-part-Remove-libparted-information-from-the-plugin-do.patch
+Patch0028: 0028-part-Fix-return-value-of-get_max_part_size-for-ungro.patch
+Patch0029: 0029-part-When-resizing-allow-growing-up-to-4-MiB-above-m.patch
+Patch0030: 0030-part-Fix-elements-leak-in-bd_part_get_part_by_pos.patch
+Patch0031: 0031-Add-separate-tool-for-VFAT-filesystem-resize-and-use.patch
 
-Patch1: 0001-Fix-acinclude-mktemp.patch
-Patch2: 0002-Drop-Python.patch
-Patch3: 0003-Make-vfat-resizing-optional.patch
-Patch4: 0004-Drop-libparted-dependencies.patch
 
 %description
 The libblockdev is a C library with GObject introspection support that can be
@@ -162,15 +192,11 @@ Requires: %{name}-swap = %{version}-%{release}
 A meta-package that pulls all the libblockdev plugins as dependencies.
 
 %prep
-%setup -q -n %{name}-%{version}/%{name}
+%autosetup -p1 -n %{name}-%{version}/%{name}
 
-%patch1 -p1 -b .fix-acinclude
-%patch2 -p1 -b .drop-python
-%patch3 -p1 -b .drop-vfat-resizing
-%patch4 -p1 -b .drop-libparted-requirement
 
 %build
-autoreconf -vfi
+%autogen
 
 # Not disabled: crypto, loop, swap, fs, disable-introspection
 %configure \
@@ -184,14 +210,15 @@ autoreconf -vfi
     --without-vdo \
     --without-nvdimm \
     --without-escrow \
+    --without-tools \
     --with-python2=no \
     --with-python3=no \
     --with-gtk-doc=no \
     --enable-tests=no
-%{__make} %{?_smp_mflags}
+%make_build
 
 %install
-%{make_install}
+%make_install
 
 %post -p /sbin/ldconfig
 %postun -p /sbin/ldconfig
@@ -233,11 +260,9 @@ autoreconf -vfi
 
 %files utils
 %{_libdir}/libbd_utils.so.*
-%{_libdir}/libbd_part_err.so.*
 
 %files utils-devel
 %{_libdir}/libbd_utils.so
-%{_libdir}/libbd_part_err.so
 %{_libdir}/pkgconfig/blockdev-utils.pc
 %dir %{_includedir}/blockdev
 %{_includedir}/blockdev/utils.h

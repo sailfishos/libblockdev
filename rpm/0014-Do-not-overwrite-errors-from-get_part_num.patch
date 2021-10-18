@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Vojtech Trefny <vtrefny@redhat.com>
+Date: Fri, 21 Jun 2019 08:34:46 +0200
+Subject: [PATCH] Do not overwrite errors from 'get_part_num'
+
+'get_part_num' sets correct error messages, no need to set it
+again.
+---
+ src/plugins/part.c | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/src/plugins/part.c b/src/plugins/part.c
+index a1c068c..4d52590 100644
+--- a/src/plugins/part.c
++++ b/src/plugins/part.c
+@@ -2462,11 +2462,8 @@ gboolean bd_part_set_part_type (const gchar *disk, const gchar *part, const gcha
+     g_free (msg);
+ 
+     part_num = get_part_num (part, error);
+-    if (part_num == -1) {
+-        g_set_error (error, BD_PART_ERROR, BD_PART_ERROR_INVAL,
+-                     "Invalid partition path given: '%s'. Cannot extract partition number", part);
++    if (part_num == -1)
+         return FALSE;
+-    }
+ 
+     /* /dev/sda1 is the partition number 0 in libfdisk */
+     part_num--;
+@@ -2518,8 +2515,6 @@ gboolean bd_part_set_part_id (const gchar *disk, const gchar *part, const gchar
+ 
+     part_num = get_part_num (part, error);
+     if (part_num == -1) {
+-        g_set_error (error, BD_PART_ERROR, BD_PART_ERROR_INVAL,
+-                     "Invalid partition path given: '%s'. Cannot extract partition number", part);
+         bd_utils_report_finished (progress_id, (*error)->message);
+         return FALSE;
+     }
+@@ -2580,8 +2575,6 @@ gchar* bd_part_get_part_id (const gchar *disk, const gchar *part, GError **error
+ 
+     part_num = get_part_num (part, error);
+     if (part_num == -1) {
+-        g_set_error (error, BD_PART_ERROR, BD_PART_ERROR_INVAL,
+-                     "Invalid partition path given: '%s'. Cannot extract partition number", part);
+         bd_utils_report_finished (progress_id, (*error)->message);
+         return NULL;
+     }
+-- 
+2.33.1
+

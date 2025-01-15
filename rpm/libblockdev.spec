@@ -1,5 +1,5 @@
 Name:        libblockdev
-Version:     2.26
+Version:     3.2.1
 Release:     1
 Summary:     A library for low-level manipulation with block devices
 License:     LGPLv2+
@@ -10,45 +10,15 @@ BuildRequires: pkgconfig(glib-2.0)
 BuildRequires: pkgconfig(gobject-introspection-1.0)
 BuildRequires: pkgconfig(udev)
 BuildRequires: pkgconfig(libkmod)
+BuildRequires: pkgconfig(libkeyutils)
 BuildRequires: gettext-devel
 BuildRequires: autoconf
 BuildRequires: autoconf-archive
 BuildRequires: automake
 BuildRequires: libtool
 BuildRequires: libfdisk-devel
-# i=1; for j in 00*patch; do printf "Patch%04d: %s\n" $i $j; i=$((i+1));done
-Patch0001: 0001-utils-Allow-passing-NULL-for-error.patch
-Patch0002: 0002-Implement-create_table-and-delete_part-using-libfdis.patch
-Patch0003: 0003-Rewrite-bd_part_get_disk_spec-and-bd_part_set_disk_f.patch
-Patch0004: 0004-Rewrite-bd_part_set_part_name-using-libfdisk.patch
-Patch0005: 0005-Use-libfdisk-to-set-GPT-flags-instead-of-sgdisk.patch
-Patch0006: 0006-Use-libfdisk-to-get-GPT-partition-flags-and-GUID.patch
-Patch0007: 0007-Use-libfdisk-to-set-partition-type-id-instead-of-sfd.patch
-Patch0008: 0008-Add-a-static-function-to-get-partition-number-from-n.patch
-Patch0009: 0009-Use-libfdisk-to-get-partition-ID-instead-of-sfdisk.patch
-Patch0010: 0010-Implement-bd_part_get_type_str-without-libparted.patch
-Patch0011: 0011-Use-libfdisk-to-set-parted-flags-in-bd_part_set_flag.patch
-Patch0012: 0012-Use-libfdisk-to-set-parted-flags-in-bd_part_set_flag.patch
-Patch0013: 0013-Use-libfdisk-to-get-partition-spec.patch
-Patch0014: 0014-Do-not-overwrite-errors-from-get_part_num.patch
-Patch0015: 0015-Use-libfdisk-to-get-disk-partitions-and-free-regions.patch
-Patch0016: 0016-Use-libfdisk-to-get-partition-by-its-position.patch
-Patch0017: 0017-Do-not-remove-all-flags-in-bd_part_set_part_flags-on.patch
-Patch0018: 0018-Manually-add-metadata-partitions-to-the-list-of-part.patch
-Patch0019: 0019-Redirect-libfdisk-log-messages-to-our-log.patch
-Patch0020: 0020-Use-libfdisk-to-create-new-partitions.patch
-Patch0021: 0021-Call-fdisk_reread_changes-after-adding-removing-part.patch
-Patch0022: 0022-Use-libfdisk-for-partition-resizing.patch
-Patch0023: 0023-Remove-remaining-parted-functions-from-the-part-plug.patch
-Patch0024: 0024-part-Take-exclusive-lock-instead-of-shared-before-wr.patch
-Patch0025: 0025-Re-read-entire-partition-table-after-adding-extended.patch
-Patch0026: 0026-part-Fix-few-typos-in-comments-and-docstrings.patch
-Patch0027: 0027-part-Remove-libparted-information-from-the-plugin-do.patch
-Patch0028: 0028-part-Fix-return-value-of-get_max_part_size-for-ungro.patch
-Patch0029: 0029-part-When-resizing-allow-growing-up-to-4-MiB-above-m.patch
-Patch0030: 0030-part-Fix-elements-leak-in-bd_part_get_part_by_pos.patch
-Patch0031: 0031-Add-separate-tool-for-VFAT-filesystem-resize-and-use.patch
-
+BuildRequires: e2fsprogs-devel
+Patch0001: 0001-Require-linux-kernel-4.10-for-LO_FLAG_DIRECT_IO.patch
 
 %description
 The libblockdev is a C library with GObject introspection support that can be
@@ -212,6 +182,9 @@ A meta-package that pulls all the libblockdev plugins as dependencies.
     --without-nvdimm \
     --without-escrow \
     --without-tools \
+    --without-smart \
+    --without-smartmontools \
+    --without-nvme \
     --with-python2=no \
     --with-python3=no \
     --with-gtk-doc=no \
@@ -247,11 +220,10 @@ A meta-package that pulls all the libblockdev plugins as dependencies.
 %{_libdir}/libblockdev.so.*
 %{_libdir}/girepository*/BlockDev*.typelib
 %dir %{_sysconfdir}/libblockdev
-%dir %{_sysconfdir}/libblockdev/conf.d
-%config %{_sysconfdir}/libblockdev/conf.d/00-default.cfg
+%dir %{_sysconfdir}/libblockdev/3/conf.d
+%config %{_sysconfdir}/libblockdev/3/conf.d/00-default.cfg
 
 %files devel
-%doc features.rst specs.rst
 %{_libdir}/libblockdev.so
 %dir %{_includedir}/blockdev
 %{_includedir}/blockdev/blockdev.h
@@ -273,6 +245,7 @@ A meta-package that pulls all the libblockdev plugins as dependencies.
 %{_includedir}/blockdev/dev_utils.h
 %{_includedir}/blockdev/module.h
 %{_includedir}/blockdev/dbus.h
+%{_includedir}/blockdev/logging.h
 
 %files crypto
 %{_libdir}/libbd_crypto.so.*
@@ -289,13 +262,7 @@ A meta-package that pulls all the libblockdev plugins as dependencies.
 %{_libdir}/libbd_fs.so
 %dir %{_includedir}/blockdev
 %{_includedir}/blockdev/fs.h
-%{_includedir}/blockdev/fs/ext.h
-%{_includedir}/blockdev/fs/generic.h
-%{_includedir}/blockdev/fs/mount.h
-%{_includedir}/blockdev/fs/ntfs.h
-%{_includedir}/blockdev/fs/vfat.h
-%{_includedir}/blockdev/fs/xfs.h
-
+%{_includedir}/blockdev/fs/*.h
 
 %files loop
 %{_libdir}/libbd_loop.so.*

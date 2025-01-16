@@ -149,6 +149,26 @@ Requires: glib2-devel
 This package contains header files and pkg-config files needed for development
 with the libblockdev-swap plugin/library.
 
+%package nvme
+BuildRequires: libnvme-devel
+BuildRequires: libuuid-devel
+Summary:     The NVMe plugin for the libblockdev library
+Requires: %{name}-utils = %{version}-%{release}
+
+%description nvme
+The libblockdev library plugin (and in the same time a standalone library)
+providing the functionality related to operations with NVMe devices.
+
+%package nvme-devel
+Summary:     Development files for the libblockdev-nvme plugin/library
+Requires: %{name}-nvme = %{version}-%{release}
+Requires: %{name}-utils-devel = %{version}-%{release}
+Requires: glib2-devel
+
+%description nvme-devel
+This package contains header files and pkg-config files needed for development
+with the libblockdev-nvme plugin/library.
+
 %package plugins-all
 Summary:     Meta-package that pulls all the libblockdev plugins as dependencies
 Requires: %{name} = %{version}-%{release}
@@ -158,6 +178,7 @@ Requires: %{name}-fs = %{version}-%{release}
 Requires: %{name}-loop = %{version}-%{release}
 Requires: %{name}-swap = %{version}-%{release}
 Requires: %{name}-part = %{version}-%{release}
+Requires: %{name}-nvme = %{version}-%{release}
 
 %description plugins-all
 A meta-package that pulls all the libblockdev plugins as dependencies.
@@ -169,7 +190,7 @@ A meta-package that pulls all the libblockdev plugins as dependencies.
 %build
 %autogen
 
-# Not disabled: crypto, loop, swap, fs, disable-introspection
+# Not disabled: nvme, crypto, loop, swap, fs, disable-introspection
 %configure \
     --without-btrfs \
     --without-lvm \
@@ -184,7 +205,6 @@ A meta-package that pulls all the libblockdev plugins as dependencies.
     --without-tools \
     --without-smart \
     --without-smartmontools \
-    --without-nvme \
     --with-python2=no \
     --with-python3=no \
     --with-gtk-doc=no \
@@ -213,6 +233,9 @@ A meta-package that pulls all the libblockdev plugins as dependencies.
 
 %post swap -p /sbin/ldconfig
 %postun swap -p /sbin/ldconfig
+
+%post nvme -p /sbin/ldconfig
+%postun nvme -p /sbin/ldconfig
 
 %files
 %{!?_licensedir:%global license %%doc}
@@ -287,5 +310,13 @@ A meta-package that pulls all the libblockdev plugins as dependencies.
 %{_libdir}/libbd_swap.so
 %dir %{_includedir}/blockdev
 %{_includedir}/blockdev/swap.h
+
+%files nvme
+%{_libdir}/libbd_nvme.so.*
+
+%files nvme-devel
+%{_libdir}/libbd_nvme.so
+%dir %{_includedir}/blockdev
+%{_includedir}/blockdev/nvme.h
 
 %files plugins-all

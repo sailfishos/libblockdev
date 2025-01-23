@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Pekka Vuorela <pekka.vuorela@jolla.com>
+Date: Wed, 15 Jan 2025 14:58:57 +0200
+Subject: [PATCH] Require linux kernel >=4.10 for LO_FLAG_DIRECT_IO
+
+The flag introduced on that version. Can remove the patch once we're
+there or newer one.
+---
+ src/plugins/loop.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/plugins/loop.c b/src/plugins/loop.c
+index 835be812..c4a448f3 100644
+--- a/src/plugins/loop.c
++++ b/src/plugins/loop.c
+@@ -24,6 +24,7 @@
+ #include <fcntl.h>
+ #include <sys/ioctl.h>
+ #include <linux/loop.h>
++#include <linux/version.h>
+ #include <errno.h>
+ #include <blockdev/utils.h>
+ #include "loop.h"
+@@ -176,8 +177,10 @@ BDLoopInfo* bd_loop_info (const gchar *loop, GError **error) {
+     info->offset = li64.lo_offset;
+     if ((li64.lo_flags & LO_FLAGS_AUTOCLEAR) != 0)
+         info->autoclear = TRUE;
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
+     if ((li64.lo_flags & LO_FLAGS_DIRECT_IO) != 0)
+         info->direct_io = TRUE;
++#endif
+     if ((li64.lo_flags & LO_FLAGS_PARTSCAN) != 0)
+         info->part_scan = TRUE;
+     if ((li64.lo_flags & LO_FLAGS_READ_ONLY) != 0)

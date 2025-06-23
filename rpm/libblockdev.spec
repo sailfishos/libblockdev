@@ -1,9 +1,9 @@
 Name:        libblockdev
-Version:     3.2.1
+Version:     3.3.1
 Release:     1
 Summary:     A library for low-level manipulation with block devices
 License:     LGPLv2+
-URL:         https://github.com/storaged-project/libblockdev
+URL:         https://github.com/sailfishos/libblockdev
 Source0:     %{name}-%{version}.tar.gz
 
 BuildRequires: pkgconfig(glib-2.0)

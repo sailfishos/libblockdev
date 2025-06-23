@@ -10,7 +10,7 @@ there or newer one.
  1 file changed, 3 insertions(+)
 
 diff --git a/src/plugins/loop.c b/src/plugins/loop.c
-index 835be812..c4a448f3 100644
+index 835be8122755c561aca0eae1fde1ae64987d03df..c4a448f384b26e3181f9a58c3a2c4fdb39ee857d 100644
 --- a/src/plugins/loop.c
 +++ b/src/plugins/loop.c
 @@ -24,6 +24,7 @@
